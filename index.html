@@ -333,7 +333,7 @@ footer { margin-top: 28px; font-size: .8rem; color: var(--muted); }
   const boardEl = $('board'), ta = $('kifu'), slider = $('slider');
   const cells = [];
   let data = build('');
-  let idx = 0, original = '', timer = null, branchFrom = null;
+  let idx = 0, original = '', timer = null, branchFrom = null, urlSync = false;
   let chips = [];
 
   // Board cells and the four star points at the b/c–f/g × 2/3–6/7 line crossings.
@@ -375,6 +375,7 @@ footer { margin-top: 28px; font-size: .8rem; color: var(--muted); }
   }
 
   function syncUrl() {
+    if (!urlSync) return;
     try { history.replaceState(null, '', location.pathname + shareQuery()); } catch (e) { /* e.g. file:// */ }
   }
 
@@ -579,7 +580,10 @@ footer { margin-top: 28px; font-size: .8rem; color: var(--muted); }
   const moveParam = params.get('move');
   const goTo = fromUrl && moveParam !== null && /^\d+$/.test(moveParam) ? +moveParam : 'end';
   ta.value = initial;
+  // Keep a bare homepage URL bare until the visitor does something; a ?kifu= URL is normalized right away.
+  urlSync = !!fromUrl;
   load(initial, { goTo });
+  urlSync = true;
   if (!fromUrl && initial === SAMPLE_KIFU && !data.error) {
     showMsg('サンプル棋譜を表示しています。20手目のあと黒も白も打てる場所がなくなり、12対12の引き分けで終局する例です。', 'ok');
   }
