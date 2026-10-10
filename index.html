@@ -580,7 +580,7 @@ footer { margin-top: 28px; font-size: .8rem; color: var(--muted); }
   const goTo = fromUrl && moveParam !== null && /^\d+$/.test(moveParam) ? +moveParam : 'end';
   ta.value = initial;
   load(initial, { goTo });
-  if (initial === SAMPLE_KIFU && !data.error) {
+  if (!fromUrl && initial === SAMPLE_KIFU && !data.error) {
     showMsg('サンプル棋譜を表示しています。20手目のあと黒も白も打てる場所がなくなり、12対12の引き分けで終局する例です。', 'ok');
   }
 })();
