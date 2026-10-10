@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>オセロ棋譜ビューア｜棋譜を貼って盤面で1手ずつ再生</title>
+<meta name="description" content="f5d6c3… 形式のオセロ（リバーシ）の棋譜を貼り付けるだけで、盤面に並べて1手ずつ再生できる無料のWebツール。パスの自動補完、手順番号の表示、途中からの別の手の検討、URLでの棋譜共有に対応しています。">
+<link rel="canonical" href="https://qsona.github.io/othello-kifu/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="オセロ棋譜ビューア">
+<meta property="og:title" content="オセロ棋譜ビューア">
+<meta property="og:description" content="オセロの棋譜を貼り付けて、盤面で1手ずつ並べられる無料のWebツール。URLで棋譜ごと共有できます。">
+<meta property="og:url" content="https://qsona.github.io/othello-kifu/">
+<meta property="og:image" content="https://qsona.github.io/othello-kifu/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#1a3727">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%2325804f'/%3E%3Ccircle cx='11' cy='11' r='6.5' fill='%23141414'/%3E%3Ccircle cx='21' cy='21' r='6.5' fill='%23141414'/%3E%3Ccircle cx='21' cy='11' r='6.5' fill='%23f6f6f0'/%3E%3Ccircle cx='11' cy='21' r='6.5' fill='%23f6f6f0'/%3E%3C/svg%3E">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "オセロ棋譜ビューア",
+  "url": "https://qsona.github.io/othello-kifu/",
+  "description": "オセロ（リバーシ）の棋譜を貼り付けて、盤面で1手ずつ再生できる無料のWebツール。",
+  "applicationCategory": "GameApplication",
+  "operatingSystem": "Any",
+  "inLanguage": "ja",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" }
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: board-first desk — board + transport on the left, kifu input and move list on the right; stacks on phones */
+:root {
+  --bg: #f2f4f0;
+  --surface: #ffffff;
+  --fg: #1c2420;
+  --muted: #5b6a61;
+  --line: #d4dcd5;
+  --tint: #e6eee8;
+  --accent: #1f6e45;
+  --on-accent: #ffffff;
+  --focus: #c9831c;
+  --err: #b3261e;
+  --felt: #25804f;
+  --felt-line: #145533;
+  --frame: #1a3727;
+  --hint: rgba(255, 255, 255, .32);
+  --mark: #e5483f;
+  --disc-b: #141414;
+  --disc-w: #f6f6f0;
+  --dot-ring: #8a958e;
+  --font-ui: "Zen Kaku Gothic New", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --pad: 3px;
+  --gap: 2px;
+  --rim: 9px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111613; --surface: #19201c; --fg: #e3eae5; --muted: #98a69e; --line: #2c3731; --tint: #1f2a24;
+    --accent: #43a370; --on-accent: #07130c; --focus: #e2a34a; --err: #ff8a80;
+    --felt: #1f6e44; --felt-line: #0e3f25; --frame: #0a1c12; --hint: rgba(255, 255, 255, .28);
+    --dot-ring: #7d8a82;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 15px; line-height: 1.6; -webkit-text-size-adjust: 100%; }
+.wrap { max-width: 1060px; margin: 0 auto; padding-inline: 16px; padding-block: calc(24px + env(safe-area-inset-top, 0px)) calc(40px + env(safe-area-inset-bottom, 0px)); }
+header h1 { margin: 0; font-size: 1.45rem; font-weight: 700; letter-spacing: .03em; text-wrap: balance; }
+header p { margin: .2rem 0 0; color: var(--muted); font-size: .9rem; }
+a { color: var(--accent); }
+
+.layout { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 32px; margin-top: 20px; align-items: start; }
+@media (max-width: 860px) { .layout { grid-template-columns: minmax(0, 1fr); gap: 24px; } }
+.board-col { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 560px; min-width: 0; }
+.side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+/* Board */
+.board-wrap { display: grid; grid-template-columns: 1.4em minmax(0, 1fr); grid-template-rows: 1.5em auto; }
+.colhdr, .rowhdr { font-family: var(--font-mono); font-weight: 500; font-size: .82rem; color: var(--muted); }
+.colhdr { grid-column: 2; grid-row: 1; display: grid; grid-template-columns: repeat(8, 1fr); text-align: center; align-items: end; padding-inline: calc(var(--rim) + var(--pad)); }
+.rowhdr { grid-column: 1; grid-row: 2; display: grid; grid-template-rows: repeat(8, 1fr); align-items: center; text-align: center; padding-block: calc(var(--rim) + var(--pad)); }
+.frame { grid-column: 2; grid-row: 2; background: var(--frame); padding: var(--rim); border-radius: 7px; box-shadow: 0 8px 22px rgba(0, 0, 0, .18); }
+.board { position: relative; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: var(--gap); padding: var(--pad); background: var(--felt-line); container-type: inline-size; }
+.star { position: absolute; width: 7px; height: 7px; border-radius: 50%; background: var(--felt-line); transform: translate(-50%, -50%); pointer-events: none; z-index: 1; }
+.cell { appearance: none; border: 0; margin: 0; padding: 0; font: inherit; background: var(--felt); aspect-ratio: 1; display: grid; place-items: center; cursor: default; position: relative; }
+.cell > * { grid-area: 1 / 1; }
+.cell.can { cursor: pointer; }
+.cell:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; z-index: 2; }
+.disc { width: 84%; height: 84%; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-mono); font-weight: 600; font-size: clamp(9px, 4.3cqi, 22px); line-height: 1; font-variant-numeric: tabular-nums; }
+.disc:not(.b):not(.w) { display: none; }
+.disc > *, .disc::after { grid-area: 1 / 1; }
+.disc.b { background: radial-gradient(circle at 34% 30%, #5c5c5c 0, #1c1c1c 46%, var(--disc-b) 100%); color: #f1f1ea; box-shadow: 0 2px 3px rgba(0, 0, 0, .45); }
+.disc.w { background: radial-gradient(circle at 34% 30%, #ffffff 0, var(--disc-w) 52%, #c8c8bd 100%); color: #161616; box-shadow: 0 2px 3px rgba(0, 0, 0, .35); }
+.cell.last .disc::after { content: ""; width: 22%; height: 22%; border-radius: 50%; background: var(--mark); }
+.board.numbers .cell.last .disc::after { display: none; }
+.board.numbers .cell.last .num { color: var(--mark); }
+.hint { display: none; width: 20%; height: 20%; border-radius: 50%; background: var(--hint); }
+.cell.show-hint .hint { display: block; }
+.cell.can:hover .hint { display: block; background: rgba(255, 255, 255, .55); }
+@keyframes flip { 0% { transform: scaleX(1); } 50% { transform: scaleX(.05); } 100% { transform: scaleX(1); } }
+@keyframes drop { from { transform: scale(.55); opacity: .3; } to { transform: scale(1); opacity: 1; } }
+.disc.flip { animation: flip .3s ease; }
+.disc.drop { animation: drop .18s ease-out; }
+@media (prefers-reduced-motion: reduce) { .disc.flip, .disc.drop { animation: none; } }
+
+/* Status + transport */
+.status { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.stat { display: flex; flex-direction: column; min-width: 0; }
+.lbl { font-size: .72rem; color: var(--muted); letter-spacing: .08em; }
+.val { font-weight: 500; font-variant-numeric: tabular-nums; }
+.val .mono { font-family: var(--font-mono); }
+.next { margin: 0; font-weight: 500; }
+.next .sub { color: var(--muted); font-weight: 400; }
+.nav { display: flex; align-items: center; gap: 8px; }
+.nav input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
+.opts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.opts label { display: inline-flex; align-items: center; gap: .4em; font-size: .9rem; cursor: pointer; }
+.opts input { accent-color: var(--accent); }
+.tip { margin: 0; font-size: .82rem; color: var(--muted); }
+
+.btn { font: inherit; font-size: .9rem; border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: 8px; padding: .42em .95em; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: .4em; }
+.btn:hover:not(:disabled) { border-color: var(--muted); }
+.btn:disabled { opacity: .38; cursor: default; }
+.btn:focus-visible, .chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 500; }
+.btn.icon { width: 2.5em; height: 2.5em; padding: 0; flex: none; }
+.btn svg { width: 1em; height: 1em; fill: currentColor; }
+
+/* Side panels */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.panel h2 { margin: 0; font-size: .95rem; font-weight: 700; letter-spacing: .04em; }
+textarea { width: 100%; min-height: 5.5em; resize: vertical; font-family: var(--font-mono); font-size: .95rem; letter-spacing: .03em; line-height: 1.55; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; overflow-wrap: anywhere; word-break: break-all; }
+textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.msg { margin: 0; font-size: .88rem; }
+.msg.err { color: var(--err); }
+.msg.ok { color: var(--muted); }
+.branch { font-size: .88rem; background: var(--tint); border-radius: 6px; padding: 8px 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.notation { margin: 0; font-size: .82rem; color: var(--muted); }
+code { font-family: var(--font-mono); color: var(--fg); }
+
+.moves { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(4.9em, 1fr)); gap: 6px; }
+.chip { width: 100%; display: flex; align-items: center; gap: .35em; font-family: var(--font-mono); font-weight: 500; font-size: .85rem; padding: .28em .5em; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--fg); cursor: pointer; font-variant-numeric: tabular-nums; }
+.chip:hover { border-color: var(--muted); }
+.chip .k { color: var(--muted); font-size: .72rem; min-width: 1.5em; text-align: right; }
+.chip.cur { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.chip.cur .k { color: inherit; opacity: .8; }
+.chip.note { cursor: default; color: var(--muted); border-style: dashed; font-family: var(--font-ui); font-size: .8rem; justify-content: center; }
+.chip.note:hover { border-color: var(--line); }
+.chip.start { font-family: var(--font-ui); font-size: .8rem; justify-content: center; }
+.dot { display: inline-block; width: .78em; height: .78em; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 1px var(--dot-ring); }
+.dot.b { background: var(--disc-b); }
+.dot.w { background: var(--disc-w); }
+
+/* About */
+.about { margin-top: 44px; padding-top: 24px; border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 8px 40px; font-size: .9rem; }
+.about section { min-width: 0; max-width: 34em; }
+.about h2 { margin: 0 0 .4rem; font-size: 1rem; font-weight: 700; letter-spacing: .04em; }
+.about ol, .about ul { margin: 0; padding-left: 1.3em; display: grid; gap: .25em; }
+.about p { margin: 0 0 .5em; }
+.about code { overflow-wrap: anywhere; }
+footer { margin-top: 28px; font-size: .8rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>オセロ棋譜ビューア</h1>
+    <p>f5d6c3… 形式の棋譜を貼り付けて、1手ずつ盤面で並べられます。</p>
+  </header>
+
+  <main class="layout">
+    <div class="board-col">
+      <div class="board-wrap">
+        <div class="colhdr" aria-hidden="true"><span>a</span><span>b</span><span>c</span><span>d</span><span>e</span><span>f</span><span>g</span><span>h</span></div>
+        <div class="rowhdr" aria-hidden="true"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span></div>
+        <div class="frame">
+          <div class="board" id="board" role="group" aria-label="オセロ盤"></div>
+        </div>
+      </div>
+
+      <div class="status">
+        <div class="stat"><span class="lbl">手数</span><span class="val" id="sMove">0 / 0手</span></div>
+        <div class="stat"><span class="lbl">直前の手</span><span class="val" id="sLast">開始局面</span></div>
+        <div class="stat"><span class="lbl">石数</span><span class="val" id="sCount"></span></div>
+      </div>
+      <p class="next" id="sNext"></p>
+
+      <div class="nav">
+        <button class="btn icon" id="bFirst" type="button" aria-label="最初の局面へ" title="最初へ（Home）"><svg viewBox="0 0 16 16"><path d="M3 2h2v12H3zM14 2v12L6 8z"/></svg></button>
+        <button class="btn icon" id="bPrev" type="button" aria-label="1手戻る" title="1手戻る（←）"><svg viewBox="0 0 16 16"><path d="M12 2v12L3 8z"/></svg></button>
+        <input type="range" id="slider" min="0" max="0" value="0" aria-label="手数">
+        <button class="btn icon" id="bNext" type="button" aria-label="1手進む" title="1手進む（→）"><svg viewBox="0 0 16 16"><path d="M4 2v12l9-6z"/></svg></button>
+        <button class="btn icon" id="bLast" type="button" aria-label="最後の局面へ" title="最後へ（End）"><svg viewBox="0 0 16 16"><path d="M11 2h2v12h-2zM2 2v12l8-6z"/></svg></button>
+      </div>
+
+      <div class="opts">
+        <button class="btn" id="bPlay" type="button">自動再生</button>
+        <label><input type="checkbox" id="optNum"> 手順を表示</label>
+        <label><input type="checkbox" id="optHint" checked> 打てる場所を表示</label>
+      </div>
+      <p class="tip">← → キーでも1手ずつ動かせます。盤上の点（打てる場所）をクリックすると、その局面から別の手を試せます。</p>
+    </div>
+
+    <div class="side">
+      <section class="panel" aria-labelledby="hKifu">
+        <h2 id="hKifu">棋譜</h2>
+        <textarea id="kifu" spellcheck="false" autocomplete="off" aria-label="棋譜" placeholder="例: f5d6c3d3c4f4f6f3e6e7"></textarea>
+        <div class="row">
+          <button class="btn primary" id="bLoad" type="button">盤に並べる</button>
+          <button class="btn" id="bShare" type="button">共有リンクをコピー</button>
+          <button class="btn" id="bCopy" type="button">棋譜をコピー</button>
+        </div>
+        <p class="msg" id="msg" hidden></p>
+        <div class="branch" id="branch" hidden>
+          <span id="branchText"></span>
+          <button class="btn" id="bRevert" type="button">元の棋譜に戻す</button>
+        </div>
+        <p class="notation">1手は「列 <code>a</code>〜<code>h</code>（左→右）＋行 <code>1</code>〜<code>8</code>（上→下）」で書きます。大文字・小文字、空白、手数の数字は無視します。パスは省略できます（<code>PA</code> / <code>PS</code> と書いても構いません）。⌘ / Ctrl + Enter でも読み込めます。</p>
+      </section>
+
+      <section class="panel" aria-labelledby="hMoves">
+        <h2 id="hMoves">手順</h2>
+        <ol class="moves" id="moves"></ol>
+      </section>
+    </div>
+  </main>
+
+  <div class="about">
+    <section aria-labelledby="hUsage">
+      <h2 id="hUsage">使い方</h2>
+      <ol>
+        <li>「棋譜」欄に棋譜を貼り付けて「盤に並べる」を押します。</li>
+        <li>◀ ▶ ボタン、スライダー、← → キーで1手ずつ進めたり戻したりします。</li>
+        <li>「手順を表示」をオンにすると、石に手数の番号が出ます。</li>
+        <li>盤上の打てる場所をクリックすると、その局面から別の手を検討できます。</li>
+        <li>「共有リンクをコピー」で、棋譜と表示中の手数を含んだ URL をコピーできます。</li>
+      </ol>
+    </section>
+    <section aria-labelledby="hUrl">
+      <h2 id="hUrl">URL で棋譜を開く</h2>
+      <p>URL の <code>kifu</code> に棋譜を、<code>move</code> に手数を付けると、その局面から開けます。<code>move</code> を省くと最後の局面を表示します。</p>
+      <p>例：<a href="?kifu=f5d6c3d3c4&amp;move=3"><code>?kifu=f5d6c3d3c4&amp;move=3</code></a></p>
+      <p>アドレスバーの URL は、表示中の棋譜と手数に合わせて自動で更新されます。</p>
+    </section>
+  </div>
+
+  <footer>
+    <a href="https://github.com/qsona/othello-kifu">ソースコード（GitHub）</a>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const SAMPLE_KIFU = 'f5f4c3f6g7f7f3h7f8b2h6e7h8e3d7g3f2f1a1c5';
+  const STORE_KEY = 'othello-kifu-v1';
+  const BLACK = 1, WHITE = 2;
+  const NAME = { 1: '黒', 2: '白' };
+  const DIRS = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
+
+  const sqName = s => 'abcdefgh'[s & 7] + ((s >> 3) + 1);
+  const parseSq = t => (t.charCodeAt(1) - 49) * 8 + (t.charCodeAt(0) - 97);
+
+  function initialBoard() {
+    const b = new Int8Array(64);
+    b[27] = WHITE; b[36] = WHITE; // d4, e5
+    b[28] = BLACK; b[35] = BLACK; // e4, d5
+    return b;
+  }
+
+  function flipsFor(b, sq, p) {
+    if (b[sq]) return [];
+    const o = 3 - p, r0 = sq >> 3, c0 = sq & 7, res = [];
+    for (const [dr, dc] of DIRS) {
+      let r = r0 + dr, c = c0 + dc;
+      const line = [];
+      while (r >= 0 && r < 8 && c >= 0 && c < 8 && b[r * 8 + c] === o) { line.push(r * 8 + c); r += dr; c += dc; }
+      if (line.length && r >= 0 && r < 8 && c >= 0 && c < 8 && b[r * 8 + c] === p) res.push(...line);
+    }
+    return res;
+  }
+
+  function legalMoves(b, p) {
+    const out = [];
+    for (let s = 0; s < 64; s++) if (flipsFor(b, s, p).length) out.push(s);
+    return out;
+  }
+
+  // If the side to move has no legal move, record the pass (or game end) on the state itself.
+  function resolve(st) {
+    if (!legalMoves(st.board, st.toMove).length) {
+      if (legalMoves(st.board, 3 - st.toMove).length) { st.passed = st.toMove; st.toMove = 3 - st.toMove; }
+      else st.over = true;
+    }
+    return st;
+  }
+
+  function build(text) {
+    const tokens = text.toLowerCase().match(/pass|pa|ps|[a-h][1-8]/g) || [];
+    const states = [resolve({ board: initialBoard(), toMove: BLACK, last: null })];
+    let error = null;
+    for (const tok of tokens) {
+      const cur = states[states.length - 1];
+      const n = states.length;
+      if (cur.over) { error = `${n - 1}手目で終局していますが、その後にも手（${tok}）が書かれています。`; break; }
+      if (tok[0] === 'p') {
+        if (cur.passed && !cur.passWritten) { cur.passWritten = true; continue; }
+        error = `${n}手目の位置に「パス」とありますが、${NAME[cur.toMove]}には打てる場所があります。`;
+        break;
+      }
+      const sq = parseSq(tok), p = cur.toMove, f = flipsFor(cur.board, sq, p);
+      if (!f.length) { error = `${n}手目の ${tok} は${NAME[p]}が打てない場所です。`; break; }
+      const b = cur.board.slice();
+      b[sq] = p;
+      for (const s of f) b[s] = p;
+      states.push(resolve({ board: b, toMove: 3 - p, last: { sq, player: p, flips: f } }));
+    }
+    return { states, error, tokenCount: tokens.length };
+  }
+
+  const $ = id => document.getElementById(id);
+  const boardEl = $('board'), ta = $('kifu'), slider = $('slider');
+  const cells = [];
+  let data = build('');
+  let idx = 0, original = '', timer = null, branchFrom = null;
+  let chips = [];
+
+  // Board cells and the four star points at the b/c–f/g × 2/3–6/7 line crossings.
+  for (let s = 0; s < 64; s++) {
+    const c = document.createElement('button');
+    c.type = 'button';
+    c.className = 'cell';
+    c.dataset.sq = s;
+    c.innerHTML = '<span class="disc"><span class="num"></span></span><span class="hint"></span>';
+    boardEl.appendChild(c);
+    cells.push(c);
+  }
+  for (const [x, y] of [[2, 2], [6, 2], [2, 6], [6, 6]]) {
+    const d = document.createElement('span');
+    d.className = 'star';
+    const pos = k => `calc(var(--pad) + ${k} * (100% - 2 * var(--pad) + var(--gap)) / 8 - var(--gap) / 2)`;
+    d.style.left = pos(x);
+    d.style.top = pos(y);
+    boardEl.appendChild(d);
+  }
+
+  const lastIndex = () => data.states.length - 1;
+
+  function counts(b) {
+    let bl = 0, wh = 0;
+    for (let s = 0; s < 64; s++) { if (b[s] === BLACK) bl++; else if (b[s] === WHITE) wh++; }
+    return [bl, wh];
+  }
+
+  function kifuUpTo(k) {
+    return data.states.slice(1, k + 1).map(s => sqName(s.last.sq)).join('');
+  }
+
+  // Query string for the current kifu and position: ?kifu=...&move=N (move omitted at the last position).
+  function shareQuery() {
+    const N = lastIndex(), kifu = kifuUpTo(N);
+    if (!kifu) return '';
+    return '?kifu=' + kifu + (idx < N ? '&move=' + idx : '');
+  }
+
+  function syncUrl() {
+    try { history.replaceState(null, '', location.pathname + shareQuery()); } catch (e) { /* e.g. file:// */ }
+  }
+
+  function render(prev) {
+    const { states } = data;
+    const st = states[idx], N = lastIndex();
+    const showNum = $('optNum').checked, showHint = $('optHint').checked;
+    const nums = new Int16Array(64);
+    for (let k = 1; k <= idx; k++) nums[states[k].last.sq] = k;
+    const legal = new Set(st.over ? [] : legalMoves(st.board, st.toMove));
+    const stepped = prev === idx - 1 && prev >= 0;
+    const prevBoard = stepped ? states[prev].board : null;
+
+    boardEl.classList.toggle('numbers', showNum);
+    for (let s = 0; s < 64; s++) {
+      const cell = cells[s], disc = cell.firstChild, v = st.board[s];
+      disc.className = 'disc' + (v === BLACK ? ' b' : v === WHITE ? ' w' : '');
+      disc.firstChild.textContent = showNum && nums[s] ? nums[s] : '';
+      cell.classList.toggle('last', !!st.last && st.last.sq === s);
+      const can = legal.has(s);
+      cell.classList.toggle('can', can);
+      cell.classList.toggle('show-hint', can && showHint);
+      cell.setAttribute('aria-label', sqName(s) + (v ? ' ' + NAME[v] : can ? ' 打てる場所' : ''));
+      if (stepped && v && prevBoard[s] !== v) {
+        void disc.offsetWidth;
+        disc.classList.add(prevBoard[s] ? 'flip' : 'drop');
+      }
+    }
+
+    const [bl, wh] = counts(st.board);
+    $('sMove').textContent = `${idx} / ${N}手`;
+    $('sLast').innerHTML = st.last
+      ? `${NAME[st.last.player]} <span class="mono">${sqName(st.last.sq)}</span>（${st.last.flips.length}枚返し）`
+      : '開始局面';
+    $('sCount').innerHTML = `<i class="dot b"></i> ${bl}　<i class="dot w"></i> ${wh}`;
+
+    let next;
+    if (st.over) {
+      const res = bl > wh ? '黒の勝ち' : wh > bl ? '白の勝ち' : '引き分け';
+      next = `終局：黒 ${bl} − 白 ${wh}（${res}）`;
+    } else if (st.passed) {
+      next = `${NAME[st.passed]}は打てる場所がないのでパス。次は${NAME[st.toMove]}番`;
+    } else {
+      next = `次は${NAME[st.toMove]}番`;
+    }
+    if (idx < N) next += `<span class="sub">　棋譜の次の手：${idx + 1}手目 <span class="mono">${sqName(states[idx + 1].last.sq)}</span></span>`;
+    $('sNext').innerHTML = next;
+
+    slider.max = N;
+    slider.value = idx;
+    $('bFirst').disabled = $('bPrev').disabled = idx === 0;
+    $('bNext').disabled = $('bLast').disabled = idx === N;
+    chips.forEach((c, k) => {
+      c.classList.toggle('cur', k === idx);
+      if (k === idx) c.setAttribute('aria-current', 'step'); else c.removeAttribute('aria-current');
+    });
+    syncUrl();
+  }
+
+  function renderList() {
+    const list = $('moves');
+    list.innerHTML = '';
+    chips = [];
+    const { states } = data;
+    const addChip = (html, cls, onClick) => {
+      const li = document.createElement('li');
+      const el = document.createElement(onClick ? 'button' : 'span');
+      el.className = 'chip ' + cls;
+      el.innerHTML = html;
+      if (onClick) { el.type = 'button'; el.addEventListener('click', onClick); }
+      li.appendChild(el);
+      list.appendChild(li);
+      return el;
+    };
+    chips[0] = addChip('開始', 'start', () => { stop(); go(0); });
+    for (let k = 1; k < states.length; k++) {
+      if (states[k - 1].passed) addChip(`${NAME[states[k - 1].passed]}パス`, 'note');
+      const m = states[k].last;
+      chips[k] = addChip(`<i class="dot ${m.player === BLACK ? 'b' : 'w'}"></i><span class="k">${k}</span>${sqName(m.sq)}`, '', () => { stop(); go(k); });
+    }
+    const end = states[states.length - 1];
+    if (end.passed) addChip(`${NAME[end.passed]}パス`, 'note');
+    if (end.over) addChip('終局', 'note');
+  }
+
+  function go(i) {
+    const N = lastIndex();
+    const nextIdx = Math.max(0, Math.min(N, i));
+    if (nextIdx === idx) return;
+    const prev = idx;
+    idx = nextIdx;
+    render(prev);
+  }
+
+  function showMsg(text, kind) {
+    const m = $('msg');
+    if (!text) { m.hidden = true; return; }
+    m.hidden = false;
+    m.className = 'msg ' + kind;
+    m.textContent = text;
+  }
+
+  function load(text, { goTo = 'end', keepOriginal = false } = {}) {
+    stop();
+    data = build(text);
+    if (!keepOriginal) { original = text; branchFrom = null; }
+    renderList();
+    const N = lastIndex();
+    idx = goTo === 'end' ? N : Math.max(0, Math.min(N, goTo));
+    render(-1);
+    if (data.error) showMsg(`${data.error} ${N}手目までを表示しています。`, 'err');
+    else if (text.trim() && !data.tokenCount) showMsg('棋譜を読み取れませんでした。f5d6c3 のように「列（a〜h）＋行（1〜8）」を続けて入力してください。', 'err');
+    else showMsg('', '');
+    $('branch').hidden = branchFrom === null;
+    if (text !== SAMPLE_KIFU) {
+      try { localStorage.setItem(STORE_KEY, text); } catch (e) { /* storage unavailable */ }
+    }
+  }
+
+  // Board click: try a different move from the current position.
+  boardEl.addEventListener('click', e => {
+    const cell = e.target.closest('.cell');
+    if (!cell || !cell.classList.contains('can')) return;
+    const sq = +cell.dataset.sq;
+    const k = idx;
+    const text = kifuUpTo(k) + sqName(sq);
+    branchFrom = branchFrom === null ? k : Math.min(branchFrom, k);
+    ta.value = text;
+    load(text, { keepOriginal: true });
+    $('branchText').textContent = `${k + 1}手目を ${sqName(sq)} に変えて試しています。`;
+  });
+
+  $('bRevert').addEventListener('click', () => {
+    const back = branchFrom ?? 0;
+    branchFrom = null;
+    ta.value = original;
+    load(original, { goTo: back });
+  });
+
+  $('bLoad').addEventListener('click', () => load(ta.value));
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); load(ta.value); }
+  });
+
+  function copyText(btn, text, onFail) {
+    const label = btn.textContent;
+    const flash = msg => { btn.textContent = msg; setTimeout(() => { btn.textContent = label; }, 1600); };
+    try {
+      navigator.clipboard.writeText(text).then(() => flash('コピーしました'), () => onFail(flash));
+    } catch (e) { onFail(flash); }
+  }
+
+  $('bCopy').addEventListener('click', e => {
+    copyText(e.currentTarget, kifuUpTo(lastIndex()), flash => { ta.focus(); ta.select(); flash('選択しました'); });
+  });
+  $('bShare').addEventListener('click', e => {
+    const url = location.href.split(/[?#]/)[0] + shareQuery();
+    copyText(e.currentTarget, url, () => showMsg(`コピーできませんでした。次の URL を共有してください：${url}`, 'ok'));
+  });
+
+  $('bFirst').addEventListener('click', () => { stop(); go(0); });
+  $('bPrev').addEventListener('click', () => { stop(); go(idx - 1); });
+  $('bNext').addEventListener('click', () => { stop(); go(idx + 1); });
+  $('bLast').addEventListener('click', () => { stop(); go(lastIndex()); });
+  slider.addEventListener('input', () => { stop(); go(+slider.value); });
+  $('optNum').addEventListener('change', () => render(-1));
+  $('optHint').addEventListener('change', () => render(-1));
+
+  function stop() {
+    if (timer) { clearInterval(timer); timer = null; }
+    $('bPlay').textContent = '自動再生';
+  }
+  $('bPlay').addEventListener('click', () => {
+    if (timer) { stop(); return; }
+    if (idx >= lastIndex()) go(0);
+    $('bPlay').textContent = '停止';
+    timer = setInterval(() => {
+      if (idx >= lastIndex()) { stop(); return; }
+      go(idx + 1);
+    }, 800);
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.target.matches && e.target.matches('textarea, input[type="range"], input[type="text"]')) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const actions = { ArrowLeft: () => go(idx - 1), ArrowRight: () => go(idx + 1), Home: () => go(0), End: () => go(lastIndex()) };
+    const act = actions[e.key];
+    if (!act) return;
+    e.preventDefault();
+    stop();
+    act();
+  });
+
+  // Boot: ?kifu= in the URL wins, then the last kifu this browser loaded, then the sample.
+  const params = new URLSearchParams(location.search);
+  const fromUrl = (params.get('kifu') || '').trim();
+  let initial = fromUrl;
+  if (!initial) {
+    try { initial = (localStorage.getItem(STORE_KEY) || '').trim(); } catch (e) { /* storage unavailable */ }
+  }
+  if (!initial) initial = SAMPLE_KIFU;
+  const moveParam = params.get('move');
+  const goTo = fromUrl && moveParam !== null && /^\d+$/.test(moveParam) ? +moveParam : 'end';
+  ta.value = initial;
+  load(initial, { goTo });
+  if (initial === SAMPLE_KIFU && !data.error) {
+    showMsg('サンプル棋譜を表示しています。20手目のあと黒も白も打てる場所がなくなり、12対12の引き分けで終局する例です。', 'ok');
+  }
+})();
+</script>
+</body>
+</html>
