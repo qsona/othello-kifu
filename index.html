@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>オセロ棋譜ビューア｜棋譜を貼って盤面で1手ずつ再生</title>
-<meta name="description" content="f5d6c3… 形式のオセロ（リバーシ）の棋譜を貼り付けるだけで、盤面に並べて1手ずつ再生できる無料のWebツール。パスの自動補完、手順番号の表示、途中からの別の手の検討、URLでの棋譜共有に対応しています。">
+<title>オセロ棋譜ビューア｜棋譜を貼って盤面で再生・棋譜並べ</title>
+<meta name="description" content="オセロ（リバーシ）の棋譜を貼り付けるだけで、盤面に並べて1手ずつ再生できる無料のWebツール。f5d6c3形式に対応、登録不要でスマホでも使えます。">
 <meta name="google-site-verification" content="8TiFruOS2E7sx5RgzyL_S7E3B2GjnFg3VY-BQ84X-eg">
 <link rel="canonical" href="https://qsona.github.io/othello-kifu/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="オセロ棋譜ビューア">
 <meta property="og:title" content="オセロ棋譜ビューア">
-<meta property="og:description" content="オセロの棋譜を貼り付けて、盤面で1手ずつ並べられる無料のWebツール。URLで棋譜ごと共有できます。">
+<meta property="og:description" content="オセロ（リバーシ）の棋譜を貼り付けて、盤面で1手ずつ並べられる無料のWebツール。URLで棋譜ごと共有できます。">
 <meta property="og:url" content="https://qsona.github.io/othello-kifu/">
 <meta property="og:image" content="https://qsona.github.io/othello-kifu/og.png">
 <meta property="og:image:width" content="1200">
@@ -29,6 +29,14 @@
   "applicationCategory": "GameApplication",
   "operatingSystem": "Any",
   "inLanguage": "ja",
+  "isAccessibleForFree": true,
+  "featureList": [
+    "f5d6c3 形式の棋譜の読み込みと1手ずつの再生",
+    "パスの自動補完",
+    "石への手順番号の表示",
+    "途中の局面からの別の手の検討",
+    "URL での棋譜と局面の共有"
+  ],
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" }
 }
 </script>
@@ -171,6 +179,10 @@ code { font-family: var(--font-mono); color: var(--fg); }
 .about ol, .about ul { margin: 0; padding-left: 1.3em; display: grid; gap: .25em; }
 .about p { margin: 0 0 .5em; }
 .about code { overflow-wrap: anywhere; }
+.faq { margin: 0; }
+.faq dt { font-weight: 700; margin-top: .9em; }
+.faq dt:first-child { margin-top: 0; }
+.faq dd { margin: .15em 0 0; }
 footer { margin-top: 28px; font-size: .8rem; color: var(--muted); }
 </style>
 </head>
@@ -178,7 +190,7 @@ footer { margin-top: 28px; font-size: .8rem; color: var(--muted); }
 <div class="wrap">
   <header>
     <h1>オセロ棋譜ビューア</h1>
-    <p>f5d6c3… 形式の棋譜を貼り付けて、1手ずつ盤面で並べられます。</p>
+    <p>オセロ棋譜ビューアは、オセロ（リバーシ）の棋譜を貼り付けて盤面に並べ、1手ずつ再生できる無料のWebツールです。登録やインストールは要りません。</p>
   </header>
 
   <main class="layout">
@@ -249,11 +261,22 @@ footer { margin-top: 28px; font-size: .8rem; color: var(--muted); }
         <li>「共有リンクをコピー」で、棋譜と表示中の手数を含んだ URL をコピーできます。</li>
       </ol>
     </section>
-    <section aria-labelledby="hUrl">
-      <h2 id="hUrl">URL で棋譜を開く</h2>
-      <p>URL の <code>kifu</code> に棋譜を、<code>move</code> に手数を付けると、その局面から開けます。<code>move</code> を省くと最後の局面を表示します。</p>
-      <p>例：<a href="?kifu=f5d6c3d3c4&amp;move=3"><code>?kifu=f5d6c3d3c4&amp;move=3</code></a></p>
-      <p>アドレスバーの URL は、表示中の棋譜と手数に合わせて自動で更新されます。</p>
+    <section aria-labelledby="hFaq">
+      <h2 id="hFaq">よくある質問</h2>
+      <dl class="faq">
+        <dt>どんな形式の棋譜を読み込めますか？</dt>
+        <dd><code>f5d6c3</code> のように、列（a〜h）と行（1〜8）の組を続けて書いた形式です。大文字・小文字、空白、「1.」のような手数の数字は無視するので、区切りや手数が入った棋譜もそのまま貼り付けられます。</dd>
+        <dt>パスはどう書けばいいですか？</dt>
+        <dd>書かなくて構いません。打てる場所がない側は自動でパスとして扱います。<code>PA</code> や <code>PS</code> と書いてあっても読み込めます。</dd>
+        <dt>棋譜を人に共有するには？</dt>
+        <dd>「共有リンクをコピー」を押すと、棋譜と表示中の手数を含んだ URL をコピーできます。URL の <code>kifu</code> に棋譜を、<code>move</code> に手数を付けると、その局面から開けます（例：<a href="?kifu=f5d6c3d3c4&amp;move=3"><code>?kifu=f5d6c3d3c4&amp;move=3</code></a>）。<code>move</code> を省くと最後の局面を表示します。</dd>
+        <dt>途中の局面から別の手を検討できますか？</dt>
+        <dd>できます。盤上の打てる場所（点の付いたマス）をクリックすると、その手から先を書き換えて表示します。「元の棋譜に戻す」で読み込んだ棋譜に戻せます。</dd>
+        <dt>打てない手が含まれているとどうなりますか？</dt>
+        <dd>何手目のどの手が打てないかを表示し、その直前の局面までを並べます。</dd>
+        <dt>スマホでも使えますか？</dt>
+        <dd>使えます。ブラウザで開くだけで、アプリのインストールや登録は要りません。</dd>
+      </dl>
     </section>
   </div>
 
